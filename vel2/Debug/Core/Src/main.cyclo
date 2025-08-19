@@ -1,0 +1,16 @@
+../Drivers/CMSIS/Include/core_cm3.h:1511:22:__NVIC_EnableIRQ	2
+../Drivers/CMSIS/Include/core_cm3.h:1639:22:__NVIC_SetPriority	2
+../Core/Src/main.c:84:6:HAL_GPIO_EXTI_Callback	3
+../Core/Src/main.c:93:6:TIM2_Init	1
+../Core/Src/main.c:106:6:TIM2_IRQHandler	2
+../Core/Src/main.c:114:11:getMicros	2
+../Core/Src/main.c:124:10:millis	1
+../Core/Src/main.c:125:5:abs	1
+../Core/Src/main.c:126:7:constrain	3
+../Core/Src/main.c:131:6:writeMotor	3
+../Core/Src/main.c:160:5:main	6
+../Core/Src/main.c:251:6:SystemClock_Config	3
+../Core/Src/main.c:291:13:MX_TIM1_Init	5
+../Core/Src/main.c:356:13:MX_USART1_UART_Init	2
+../Core/Src/main.c:389:13:MX_GPIO_Init	1
+../Core/Src/main.c:451:6:Error_Handler	1
