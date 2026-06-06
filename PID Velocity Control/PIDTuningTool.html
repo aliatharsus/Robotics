@@ -5,476 +5,101 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>STM32 PID Controller with Live Plotter</title>
     <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-        
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            background: #0a0a0a;
-            color: #fff;
-            overflow-x: hidden;
-        }
-        
-        .header {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            padding: 20px;
-            box-shadow: 0 4px 20px rgba(0,0,0,0.5);
-        }
-        
-        .header-content {
-            max-width: 2000px;
-            margin: 0 auto;
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            flex-wrap: wrap;
-            gap: 20px;
-        }
-        
-        .title {
-            font-size: 24px;
-            font-weight: 700;
-            color: white;
-            text-shadow: 0 2px 10px rgba(0,0,0,0.3);
-        }
-        
-        .connection-controls {
-            display: flex;
-            align-items: center;
-            gap: 15px;
-        }
-        
-        .status {
-            padding: 8px 16px;
-            border-radius: 20px;
-            font-size: 13px;
-            font-weight: 600;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-        }
-        
-        .status.connected {
-            background: rgba(76, 175, 80, 0.3);
-            border: 2px solid #4CAF50;
-            color: #4CAF50;
-        }
-        
-        .status.disconnected {
-            background: rgba(244, 67, 54, 0.3);
-            border: 2px solid #f44336;
-            color: #f44336;
-        }
-        
-        .status-dot {
-            width: 8px;
-            height: 8px;
-            border-radius: 50%;
-            background: currentColor;
-            animation: pulse 2s infinite;
-        }
-        
-        @keyframes pulse {
-            0%, 100% { opacity: 1; transform: scale(1); }
-            50% { opacity: 0.6; transform: scale(1.2); }
-        }
-        
-        button {
-            padding: 10px 20px;
-            border: none;
-            border-radius: 8px;
-            font-weight: 600;
-            cursor: pointer;
-            transition: all 0.3s;
-            font-size: 14px;
-        }
-        
-        .btn-connect {
-            background: white;
-            color: #667eea;
-        }
-        
-        .btn-connect:hover:not(:disabled) {
-            transform: translateY(-2px);
-            box-shadow: 0 4px 15px rgba(255,255,255,0.3);
-        }
-        
-        .btn-disconnect {
-            background: rgba(244, 67, 54, 0.9);
-            color: white;
-        }
-        
-        .btn-disconnect:hover:not(:disabled) {
-            background: #f44336;
-        }
-        
-        button:disabled {
-            opacity: 0.5;
-            cursor: not-allowed;
-        }
-        
-        .main-container {
-            max-width: 2000px;
-            margin: 0 auto;
-            padding: 20px;
-            display: grid;
-            grid-template-columns: 320px 1fr 280px;
-            gap: 20px;
-            height: calc(100vh - 100px);
-        }
-        
-        .control-panel, .tools-panel {
-            background: #1a1a1a;
-            border-radius: 12px;
-            padding: 25px;
-            box-shadow: 0 4px 20px rgba(0,0,0,0.3);
-            overflow-y: auto;
-        }
-        
-        .panel-title {
-            font-size: 18px;
-            font-weight: 700;
-            color: #667eea;
-            margin-bottom: 20px;
-            padding-bottom: 10px;
-            border-bottom: 2px solid #2a2a2a;
-        }
-        
-        .param-group {
-            margin-bottom: 25px;
-            background: #0f0f0f;
-            padding: 20px;
-            border-radius: 10px;
-            border: 1px solid #2a2a2a;
-            transition: all 0.3s;
-        }
-        
-        .param-group:hover {
-            border-color: #667eea;
-            box-shadow: 0 0 20px rgba(102, 126, 234, 0.2);
-        }
-        
-        .param-label {
-            font-size: 14px;
-            font-weight: 600;
-            color: #bbb;
-            margin-bottom: 10px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-        
-        .param-name {
-            color: #667eea;
-            font-size: 16px;
-        }
-        
-        .param-value {
-            font-family: 'Courier New', monospace;
-            color: #4CAF50;
-            font-size: 14px;
-        }
-        
-        .input-group {
-            display: flex;
-            gap: 10px;
-        }
-        
-        input[type="number"] {
-            flex: 1;
-            padding: 12px;
-            background: #2a2a2a;
-            border: 2px solid #3a3a3a;
-            border-radius: 8px;
-            color: #fff;
-            font-size: 15px;
-            transition: all 0.3s;
-        }
-        
-        input[type="number"]:focus {
-            outline: none;
-            border-color: #667eea;
-            box-shadow: 0 0 15px rgba(102, 126, 234, 0.3);
-        }
-        
-        .btn-send {
-            background: #4CAF50;
-            color: white;
-            padding: 12px 20px;
-            border: none;
-            border-radius: 8px;
-            font-weight: 600;
-            cursor: pointer;
-            transition: all 0.3s;
-            white-space: nowrap;
-        }
-        
-        .btn-send:hover:not(:disabled) {
-            background: #45a049;
-            transform: translateY(-2px);
-            box-shadow: 0 4px 15px rgba(76, 175, 80, 0.4);
-        }
-        
-        .btn-send:active:not(:disabled) {
-            transform: translateY(0);
-        }
-        
-        .tool-section {
-            margin-bottom: 25px;
-            background: #0f0f0f;
-            padding: 15px;
-            border-radius: 10px;
-            border: 1px solid #2a2a2a;
-        }
-        
-        .tool-section-title {
-            font-size: 14px;
-            font-weight: 600;
-            color: #999;
-            margin-bottom: 12px;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-        }
-        
-        .radio-group {
-            display: flex;
-            flex-direction: column;
-            gap: 10px;
-        }
-        
-        .radio-item {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            cursor: pointer;
-            padding: 8px;
-            border-radius: 6px;
-            transition: all 0.3s;
-        }
-        
-        .radio-item:hover {
-            background: #1a1a1a;
-        }
-        
-        .radio-item input[type="radio"] {
-            width: 18px;
-            height: 18px;
-            cursor: pointer;
-            accent-color: #667eea;
-        }
-        
-        .radio-item label {
-            cursor: pointer;
-            color: #ccc;
-            font-size: 14px;
-        }
-        
-        .range-inputs {
-            display: flex;
-            flex-direction: column;
-            gap: 10px;
-            margin-top: 10px;
-        }
-        
-        .range-input-group {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-        }
-        
-        .range-input-group label {
-            min-width: 50px;
-            color: #999;
-            font-size: 13px;
-        }
-        
-        .range-input-group input {
-            flex: 1;
-            padding: 8px;
-            background: #2a2a2a;
-            border: 1px solid #3a3a3a;
-            border-radius: 6px;
-            color: #fff;
-            font-size: 13px;
-        }
-        
-        .coordinates-display {
-            background: #0f0f0f;
-            padding: 15px;
-            border-radius: 8px;
-            border: 1px solid #2a2a2a;
-            font-family: 'Courier New', monospace;
-            font-size: 13px;
-        }
-        
-        .coord-row {
-            display: flex;
-            justify-content: space-between;
-            margin-bottom: 8px;
-        }
-        
-        .coord-label {
-            color: #999;
-        }
-        
-        .coord-value {
-            color: #4CAF50;
-            font-weight: 600;
-        }
-        
-        .plot-container {
-            background: #1a1a1a;
-            border-radius: 12px;
-            padding: 20px;
-            box-shadow: 0 4px 20px rgba(0,0,0,0.3);
-            display: flex;
-            flex-direction: column;
-        }
-        
-        .plot-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 15px;
-            flex-wrap: wrap;
-            gap: 15px;
-        }
-        
-        .plot-title {
-            font-size: 18px;
-            font-weight: 700;
-            color: #667eea;
-        }
-        
-        .plot-controls {
-            display: flex;
-            gap: 15px;
-            align-items: center;
-        }
-        
-        .control-item {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-        }
-        
-        .control-item label {
-            font-size: 12px;
-            color: #999;
-        }
-        
-        .control-item input {
-            width: 100px;
-            padding: 6px 10px;
-            background: #0f0f0f;
-            border: 1px solid #3a3a3a;
-            border-radius: 6px;
-            color: #fff;
-            font-size: 13px;
-        }
-        
-        .btn-clear {
-            background: #FF9800;
-            color: white;
-            padding: 6px 14px;
-            font-size: 13px;
-        }
-        
-        .btn-clear:hover:not(:disabled) {
-            background: #e68900;
-        }
-        
-        .stats {
-            display: flex;
-            gap: 20px;
-            font-size: 12px;
-        }
-        
-        .stat-item {
-            display: flex;
-            flex-direction: column;
-            gap: 2px;
-        }
-        
-        .stat-label {
-            color: #666;
-            font-size: 10px;
-            font-weight: 600;
-        }
-        
-        .stat-value {
-            color: #4CAF50;
-            font-weight: 700;
-            font-family: 'Courier New', monospace;
-        }
-        
-        .canvas-wrapper {
-            flex: 1;
-            background: #0a0a0a;
-            border-radius: 8px;
-            position: relative;
-            min-height: 400px;
-            cursor: crosshair;
-        }
-        
-        canvas {
-            display: block;
-            width: 100%;
-            height: 100%;
-            border-radius: 8px;
-        }
-        
-        .no-data {
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            color: #444;
-            font-size: 16px;
-            text-align: center;
-            pointer-events: none;
-        }
-        
-        .crosshair {
-            position: absolute;
-            pointer-events: none;
-        }
-        
-        .crosshair-v {
-            width: 1px;
-            background: rgba(102, 126, 234, 0.5);
-            height: 100%;
-        }
-        
-        .crosshair-h {
-            height: 1px;
-            background: rgba(102, 126, 234, 0.5);
-            width: 100%;
-        }
-        
-        @media (max-width: 1400px) {
-            .main-container {
-                grid-template-columns: 1fr;
-                height: auto;
-            }
-            
-            .control-panel, .tools-panel {
-                max-height: none;
-            }
-            
-            .canvas-wrapper {
-                min-height: 500px;
-            }
-        }
+      * { box-sizing: border-box; margin: 0; padding: 0; }
+
+body { font-family: sans-serif; }
+
+.header { background: #eee; padding: 10px; border-bottom: 1px solid #ccc; }
+
+.header-content { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px; }
+
+.title { font-size: 18px; font-weight: bold; }
+
+.connection-controls { display: flex; align-items: center; gap: 8px; }
+
+.status { padding: 4px 8px; border: 1px solid; font-size: 12px; display: flex; align-items: center; gap: 6px; }
+
+.status.connected { border-color: green; color: green; }
+
+.status.disconnected { border-color: red; color: red; }
+
+.status-dot { width: 8px; height: 8px; border-radius: 50%; background: currentColor; }
+
+button { padding: 4px 10px; cursor: pointer; }
+
+button:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.main-container { display: grid; grid-template-columns: 280px 1fr 240px; gap: 10px; padding: 10px; height: calc(100vh - 60px); }
+
+.control-panel, .tools-panel { border: 1px solid #ccc; padding: 10px; overflow-y: auto; }
+
+.panel-title { font-size: 14px; font-weight: bold; margin-bottom: 10px; border-bottom: 1px solid #ccc; padding-bottom: 4px; }
+
+.param-group { margin-bottom: 12px; padding: 8px; border: 1px solid #ccc; }
+
+.param-label { font-size: 12px; display: flex; justify-content: space-between; margin-bottom: 6px; }
+
+.input-group { display: flex; gap: 6px; }
+
+input[type="number"] { flex: 1; padding: 4px; font-size: 14px; }
+
+.tool-section { margin-bottom: 12px; padding: 8px; border: 1px solid #ccc; }
+
+.tool-section-title { font-size: 11px; font-weight: bold; margin-bottom: 6px; text-transform: uppercase; }
+
+.radio-group { display: flex; flex-direction: column; gap: 6px; }
+
+.radio-item { display: flex; align-items: center; gap: 6px; }
+
+.range-inputs { display: flex; flex-direction: column; gap: 6px; margin-top: 6px; }
+
+.range-input-group { display: flex; align-items: center; gap: 6px; }
+
+.range-input-group label { min-width: 40px; font-size: 12px; }
+
+.range-input-group input { width: 80px ; flex: 1; padding: 4px; }
+
+.coordinates-display { padding: 8px; border: 1px solid #ccc; font-family: monospace; font-size: 12px; }
+
+.coord-row { display: flex; justify-content: space-between; margin-bottom: 4px; }
+
+.plot-container { border: 1px solid #ccc; padding: 10px; display: flex; flex-direction: column; }
+
+.plot-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; flex-wrap: wrap; gap: 8px; }
+
+.plot-title { font-size: 14px; font-weight: bold; }
+
+.plot-controls { display: flex; gap: 8px; align-items: center; }
+
+.control-item { display: flex; align-items: center; gap: 4px; }
+
+.control-item label { font-size: 12px; }
+
+.control-item input { width: 80px; padding: 4px; font-size: 12px; }
+
+.stats { display: flex; gap: 12px; font-size: 11px; }
+
+.stat-item { display: flex; flex-direction: column; }
+
+.stat-label { font-size: 10px; font-weight: bold; }
+
+.canvas-wrapper { flex: 1; background: #fff; border: 1px solid #ccc; position: relative; min-height: 400px; cursor: crosshair; }
+
+canvas { display: block; width: 100%; height: 100%; }
+
+.no-data { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); color: #aaa; font-size: 14px; text-align: center; pointer-events: none; }
+
+.crosshair-v { width: 1px; background: rgba(0,0,100,0.3); height: 100%; position: absolute; pointer-events: none; }
+
+.crosshair-h { height: 1px; background: rgba(0,0,100,0.3); width: 100%; position: absolute; pointer-events: none; }
+
+@media (max-width: 1400px) { .main-container { grid-template-columns: 1fr; height: auto; } .canvas-wrapper { min-height: 400px; } }
     </style>
 </head>
 <body>
     <div class="header">
         <div class="header-content">
-            <div class="title">TuneZawg</div>
+            <div class="title">Frame Frmat : "%f %f\n", x, y</div>
             <div class="connection-controls">
                 <div id="status" class="status disconnected">
                     <div class="status-dot"></div>
@@ -545,7 +170,7 @@
                     </div>
 					<div class="control-item">
 						<label>Avg Window:</label>
-						<input type="number" id="avgWindow" value="50" min="1" max="1000">
+						<input type="number" id="avgWindow" value="1000" min="1" max="1000">
 					</div>
                     <button id="clearBtn" class="btn-clear">Clear</button>
                     <div class="stats">
@@ -681,7 +306,7 @@
         let partialLine = '';
         
         // Plot settings
-        let useStaticScale = true;
+        let useStaticScale = false;
         let staticYMin = -8000;
         let staticYMax = 8000;
         let currentPlotBounds = { minVal: 0, maxVal: 0, minTime: 0, maxTime: 0 };
@@ -691,6 +316,8 @@
         let dataCount = 0;
         let frameCount = 0;
         let lastFpsTime = Date.now();
+		let myRateTry = 0;
+		let myRateTryLast = 0;
         
         // Canvas setup
         function resizeCanvas() {
@@ -871,9 +498,13 @@
                     dataCount++;
                     
                     const now = Date.now();
+					const delta = time-myRateTryLast;
+					myRateTryLast = time;
+					const rateMine = 1/delta;
+					dataRateDiv.textContent = rateMine.toFixed(1) + ' Hz';
                     if (now - lastUpdateTime >= 1000) {
                         const rate = dataCount / ((now - lastUpdateTime) / 1000);
-                        dataRateDiv.textContent = rate.toFixed(1) + ' Hz';
+                        //dataRateDiv.textContent = rate.toFixed(1) + ' Hz';
                         dataCount = 0;
                         lastUpdateTime = now;
                     }
@@ -962,27 +593,22 @@
             ctx.fillRect(0, 0, w, h);
             
             if (dataBuffer.length === 0) {
-                noDataDiv.style.display = 'block';
-					// 1. Determine how many points to calculate
-					const count = Math.min(dataBuffer.length, avgWindowSize);
-					let sum = 0;
-
-					// 2. Sum the last N points
-					// We loop backwards from the end of the array
-					for (let i = 0; i < count; i++) {
-						sum += dataBuffer[dataBuffer.length - 1 - i].value;
-					}
-
-					// 3. Calculate average and update text
-					const avg = sum / count;
-					avgValueDiv.textContent = avg.toFixed(3);
-				
-                requestAnimationFrame(draw);
-                return;
-            }
+				noDataDiv.style.display = 'block';
+				avgValueDiv.textContent = '--';
+				requestAnimationFrame(draw);
+				return;
+			}
             
             noDataDiv.style.display = 'none';
             pointCountDiv.textContent = dataBuffer.length;
+			pointCountDiv.textContent = dataBuffer.length;
+
+			const count = Math.min(dataBuffer.length, avgWindowSize);
+			let sum = 0;
+			for (let i = 0; i < count; i++) {
+				sum += dataBuffer[dataBuffer.length - 1 - i].value;
+			}
+			avgValueDiv.textContent = (sum / count).toFixed(3);
             
             const values = dataBuffer.map(d => d.value);
             const times = dataBuffer.map(d => d.time);
