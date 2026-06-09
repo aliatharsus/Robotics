@@ -263,7 +263,34 @@ canvas { display: block; width: 100%; height: 100%; }
                     </div>
                 </div>
             </div>
+
+            <div class="tool-section">
+                <div class="tool-section-title">Record Data</div>
+                <div class="range-inputs" style="display: flex;">
+                    <div class="range-input-group">
+                        <label>Lines:</label>
+                        <input type="number" id="recordCount" value="500" min="1" max="100000" step="1">
+                    </div>
+                </div>
+                <div style="margin-top: 8px; display: flex; align-items: center; gap: 8px;">
+                    <button id="recordBtn">Start Recording</button>
+                    <span id="recordStatus" style="font-size: 11px; font-family: monospace;"></span>
+                </div>
+            </div>
         </div>
+
+    <!-- Record Data Modal -->
+    <div id="recordModal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.6); z-index:1000; align-items:center; justify-content:center;">
+        <div style="background:#fff; padding:20px; border:1px solid #ccc; max-width:600px; width:90%; max-height:80vh; display:flex; flex-direction:column; gap:10px;">
+            <div style="font-size:14px; font-weight:bold;">Recording Complete</div>
+            <div style="font-size:12px; color:#666;" id="recordModalInfo"></div>
+            <textarea id="recordDataArea" readonly style="flex:1; min-height:300px; font-family:monospace; font-size:12px; padding:8px; border:1px solid #ccc; resize:vertical;"></textarea>
+            <div style="display:flex; gap:8px; justify-content:flex-end;">
+                <button id="recordCopyBtn">Copy to Clipboard</button>
+                <button id="recordCloseBtn">Close</button>
+            </div>
+        </div>
+    </div>
     </div>
 
     <script>
@@ -293,8 +320,23 @@ canvas { display: block; width: 100%; height: 100%; }
 		const avgWindowInput = document.getElementById('avgWindow');
 		const avgValueDiv = document.getElementById('avgValue');
 
+		// Recording elements
+		const recordCountInput = document.getElementById('recordCount');
+		const recordBtn = document.getElementById('recordBtn');
+		const recordStatus = document.getElementById('recordStatus');
+		const recordModal = document.getElementById('recordModal');
+		const recordDataArea = document.getElementById('recordDataArea');
+		const recordModalInfo = document.getElementById('recordModalInfo');
+		const recordCopyBtn = document.getElementById('recordCopyBtn');
+		const recordCloseBtn = document.getElementById('recordCloseBtn');
+
 
 		let avgWindowSize = parseInt(avgWindowInput.value);
+
+		// Recording state
+		let isRecording = false;
+		let recordTarget = 0;
+		let recordedLines = [];
         
         let port = null;
         let reader = null;
@@ -418,6 +460,8 @@ canvas { display: block; width: 100%; height: 100%; }
             }
         }
         
+        let savedDeviceInfo = null;
+
         async function connect() {
             try {
                 port = await navigator.serial.requestPort();
@@ -426,6 +470,13 @@ canvas { display: block; width: 100%; height: 100%; }
                 writer = port.writable.getWriter();
                 reader = port.readable.getReader();
                 keepReading = true;
+                
+                // Remember this device for auto-reconnect
+                try {
+                    const info = port.getInfo();
+                    savedDeviceInfo = { usbVendorId: info.usbVendorId, usbProductId: info.usbProductId };
+                    console.log('Saved device:', savedDeviceInfo);
+                } catch(e) {}
                 
                 updateConnectionStatus(true);
                 readData();
@@ -438,25 +489,21 @@ canvas { display: block; width: 100%; height: 100%; }
         async function disconnect() {
             keepReading = false;
             
-            try {
-                if (reader) {
-                    await reader.cancel();
-                    reader.releaseLock();
-                    reader = null;
-                }
-                if (writer) {
-                    writer.releaseLock();
-                    writer = null;
-                }
-                if (port) {
-                    await port.close();
-                    port = null;
-                }
-                
-                updateConnectionStatus(false);
-            } catch (error) {
-                console.error('Disconnect error:', error);
+            if (reader) {
+                try { await reader.cancel(); } catch(e) {}
+                try { reader.releaseLock(); } catch(e) {}
+                reader = null;
             }
+            if (writer) {
+                try { writer.releaseLock(); } catch(e) {}
+                writer = null;
+            }
+            if (port) {
+                try { await port.close(); } catch(e) {}
+                port = null;
+            }
+            
+            updateConnectionStatus(false);
         }
         
         async function readData() {
@@ -508,6 +555,15 @@ canvas { display: block; width: 100%; height: 100%; }
                         dataCount = 0;
                         lastUpdateTime = now;
                     }
+
+                    // Recording: capture this line if recording is active
+                    if (isRecording) {
+                        recordedLines.push(line);
+                        recordStatus.textContent = recordedLines.length + ' / ' + recordTarget;
+                        if (recordedLines.length >= recordTarget) {
+                            finishRecording();
+                        }
+                    }
                 }
             }
         }
@@ -544,6 +600,7 @@ canvas { display: block; width: 100%; height: 100%; }
                 header = 0xED;
                 inputId = 'tvInput';
                 valueDisplay = 'tvValue';
+                clearData();    
             }
             
             value = parseFloat(document.getElementById(inputId).value);
@@ -766,6 +823,52 @@ canvas { display: block; width: 100%; height: 100%; }
         connectBtn.addEventListener('click', connect);
         disconnectBtn.addEventListener('click', disconnect);
         clearBtn.addEventListener('click', clearData);
+
+        // Recording controls
+        recordBtn.addEventListener('click', () => {
+            if (isRecording) {
+                // Stop early
+                finishRecording();
+            } else {
+                // Start recording
+                recordTarget = parseInt(recordCountInput.value);
+                if (isNaN(recordTarget) || recordTarget < 1) {
+                    alert('Enter a valid number of lines to record.');
+                    return;
+                }
+                recordedLines = [];
+                isRecording = true;
+                recordBtn.textContent = 'Stop Recording';
+                recordStatus.textContent = '0 / ' + recordTarget;
+            }
+        });
+
+        function finishRecording() {
+            isRecording = false;
+            recordBtn.textContent = 'Start Recording';
+            recordStatus.textContent = 'Done (' + recordedLines.length + ' lines)';
+
+            // Show modal
+            recordModalInfo.textContent = 'Captured ' + recordedLines.length + ' lines.';
+            recordDataArea.value = recordedLines.join('\n');
+            recordModal.style.display = 'flex';
+        }
+
+        recordCopyBtn.addEventListener('click', () => {
+            recordDataArea.select();
+            navigator.clipboard.writeText(recordDataArea.value).then(() => {
+                recordCopyBtn.textContent = 'Copied!';
+                setTimeout(() => { recordCopyBtn.textContent = 'Copy to Clipboard'; }, 1500);
+            }).catch(() => {
+                document.execCommand('copy');
+                recordCopyBtn.textContent = 'Copied!';
+                setTimeout(() => { recordCopyBtn.textContent = 'Copy to Clipboard'; }, 1500);
+            });
+        });
+
+        recordCloseBtn.addEventListener('click', () => {
+            recordModal.style.display = 'none';
+        });
         
         // Keyboard shortcuts
         document.addEventListener('keydown', (e) => {
@@ -781,6 +884,60 @@ canvas { display: block; width: 100%; height: 100%; }
         if (!('serial' in navigator)) {
             alert('Web Serial API not supported. Use Chrome, Edge, or Opera.');
             connectBtn.disabled = true;
+        } else {
+            // Auto-disconnect when device is removed
+            navigator.serial.addEventListener('disconnect', async (e) => {
+                if (!port) return;
+                console.log('Device removed, cleaning up...');
+                keepReading = false;
+                if (reader) {
+                    try { reader.releaseLock(); } catch(err) {}
+                    reader = null;
+                }
+                if (writer) {
+                    try { writer.releaseLock(); } catch(err) {}
+                    writer = null;
+                }
+                // Port is already gone, just null it
+                port = null;
+                updateConnectionStatus(false);
+            });
+
+            // Auto-reconnect when the device re-enumerates on USB
+            navigator.serial.addEventListener('connect', async () => {
+                if (port || !savedDeviceInfo) return; // already connected or never was
+                console.log('USB device enumerated, waiting for it to settle...');
+                // Small delay to let the OS finish enumeration
+                await new Promise(r => setTimeout(r, 1000));
+                if (port) return; // reconnected during the wait
+                try {
+                    const ports = await navigator.serial.getPorts();
+                    let target = null;
+                    for (const p of ports) {
+                        const info = p.getInfo();
+                        if (info.usbVendorId === savedDeviceInfo.usbVendorId &&
+                            info.usbProductId === savedDeviceInfo.usbProductId) {
+                            target = p;
+                            break;
+                        }
+                    }
+                    if (!target && ports.length > 0) target = ports[0]; // fallback
+                    if (!target) return;
+
+                    console.log('Reconnecting to device...');
+                    port = target;
+                    await port.open({ baudRate: 115200 });
+                    writer = port.writable.getWriter();
+                    reader = port.readable.getReader();
+                    keepReading = true;
+                    updateConnectionStatus(true);
+                    readData();
+                    console.log('Auto-reconnected successfully.');
+                } catch (error) {
+                    console.error('Auto-reconnect failed:', error.message);
+                    port = null; reader = null; writer = null;
+                }
+            });
         }
         
         // Start animation loop
